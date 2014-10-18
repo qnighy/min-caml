@@ -104,3 +104,92 @@ let f e =
   toplevel := [];
   let e' = g M.empty S.empty e in
   Prog(List.rev !toplevel, e')
+
+let rec pp_t pf = function
+  | Unit -> Format.fprintf pf "()"
+  | Int i -> Format.fprintf pf "%d" i
+  | Float f -> Format.fprintf pf "%.1g" f
+  | Neg y -> Format.fprintf pf "@[-@,%s@]" y
+  | Add (y, z) -> Format.fprintf pf "@[%s@ +@ %s@]" y z
+  | Sub (y, z) -> Format.fprintf pf "@[%s@ -@ %s@]" y z
+  | FNeg y -> Format.fprintf pf "@[.-@,%s@]" y
+  | FAdd (y, z) -> Format.fprintf pf "@[%s@ .+@ %s@]" y z
+  | FSub (y, z) -> Format.fprintf pf "@[%s@ .-@ %s@]" y z
+  | FMul (y, z) -> Format.fprintf pf "@[%s@ .*@ %s@]" y z
+  | FDiv (y, z) -> Format.fprintf pf "@[%s@ ./@ %s@]" y z
+  | IfEq (a, b, y, z) ->
+      Format.fprintf pf
+	"@[<hv>@[<2>if@ @[%s@ =@ %s@]@]@ @[<2>then@ %a@]@ @[<2>else@ %a@]@ @[<2>endif@]@]"
+	a b pp_t y pp_t z
+  | IfLE (a, b, y, z) ->
+      Format.fprintf pf
+	"@[<hv>@[<2>if@ @[%s@ <=@ %s@]@]@ @[<2>then@ %a@]@ @[<2>else@ %a@]@ @[<2>endif@]@]"
+	a b pp_t y pp_t z
+  | Let ((a, ta), y, z) ->
+      Format.fprintf pf "@[<hv>@[<2>let@ %s@ :@ %a@ =@]@;<1 2>%a@ in@ %a@]"
+	a Type.pp ta pp_t y pp_t z
+  | Var a -> Format.fprintf pf "%s" a
+  | MakeCls ((a, ta), cl, z) ->
+      let cl_entry = match cl.entry with Id.L id -> id in
+      Format.fprintf pf "@[<hv>@[<2>let@ %s@ :@ %a@ =@]@;<1 2>(%s@ #%s"
+	a Type.pp ta "@closure" cl_entry;
+      List.iter (fun fv ->
+	Format.fprintf pf "@ %s" fv
+      ) cl.actual_fv;
+      Format.fprintf pf ")@ in@ %a@]" pp_t z
+  | AppCls (cl_id, args) ->
+      Format.fprintf pf "@[%s@ #%s" "@apply_closure" cl_id;
+      List.iter (fun arg ->
+	Format.fprintf pf "@ %s" arg
+      ) args;
+      Format.fprintf pf "@]"
+  | AppDir (Id.L dir_id, args) ->
+      Format.fprintf pf "@[%s@ #%s" "@apply" dir_id;
+      List.iter (fun arg ->
+	Format.fprintf pf "@ %s" arg
+      ) args;
+      Format.fprintf pf "@]"
+  | Tuple [] -> Format.fprintf pf "@[()@]"
+  | Tuple (tv_hd :: tv_tl) ->
+      Format.fprintf pf "@[(%s" tv_hd;
+      List.iter (fun v ->
+	Format.fprintf pf ",@ %s" v
+      ) tv_tl;
+      Format.fprintf pf ")@]"
+  | LetTuple (tvs, tname, cont) ->
+      Format.fprintf pf "@[<hv>@[<2>let tuple@ (";
+      begin match tvs with
+      | [] -> ()
+      | ((elemnam_hd, elemt_hd) :: tvs_tl) ->
+	  Format.fprintf pf "@[<2>%s@ :@ %a@]" elemnam_hd Type.pp elemt_hd;
+	  List.iter (fun (elemnam, elemt) ->
+	    Format.fprintf pf ",@ @[<2>%s@ :@ %a@]" elemnam Type.pp elemt
+	  ) tvs_tl
+      end;
+      Format.fprintf pf ")@ =@]@;<1 2>%s@ in@ %a@]" tname pp_t cont
+  | Get (y, z) ->
+      Format.fprintf pf "@[%s.(%s)@]" y z
+  | Put (y, z, w) ->
+      Format.fprintf pf "@[%s.(%s)@ <-@ %s@]" y z w
+  | ExtArray (Id.L y) ->
+      Format.fprintf pf "@[(%s@ %s)@]" "@ext_array" y
+
+let pp_fundef pf f =
+  let fname = match fst f.name with Id.L id -> id in
+  Format.fprintf pf "@[<v>@[<2>let rec@ %s" fname;
+  List.iter (fun (argnam, argt) ->
+    Format.fprintf pf "@ @[<2>(%s@ :@ %a)@]" argnam Type.pp argt
+  ) f.args;
+  List.iter (fun (argnam, argt) ->
+    Format.fprintf pf "@ @[<2>(free %s@ :@ %a)@]" argnam Type.pp argt
+  ) f.formal_fv;
+  Format.fprintf pf "@ :@ %a@ =@]@;<1 2>%a@]"
+    Type.pp (snd f.name) pp_t f.body
+
+let pp pf = function Prog (p, ep) ->
+  Format.fprintf pf "@[<v>";
+  List.iter (fun f ->
+    Format.fprintf pf "%a;;@ " pp_fundef f
+  ) p;
+  Format.fprintf pf "@[<v>@[<2>let@ _@ =@]@;<1 2>%a@]" pp_t ep;
+  Format.fprintf pf "@]"

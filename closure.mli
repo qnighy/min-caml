@@ -31,3 +31,7 @@ type prog = Prog of fundef list * t
 
 val fv : t -> S.t
 val f : KNormal.t -> prog
+
+val pp_t : Format.formatter -> t -> unit
+val pp_fundef : Format.formatter -> fundef -> unit
+val pp : Format.formatter -> prog -> unit

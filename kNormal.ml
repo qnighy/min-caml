@@ -177,3 +177,73 @@ let rec g env = function (* K正規化ルーチン本体 (caml2html: knormal_g) *)
 		(fun z -> Put(x, y, z), Type.Unit)))
 
 let f e = fst (g M.empty e)
+
+let rec pp pf x =
+  begin match x with
+  | Unit -> Format.fprintf pf "()"
+  | Int i -> Format.fprintf pf "%d" i
+  | Float f -> Format.fprintf pf "%.1g" f
+  | Neg y -> Format.fprintf pf "@[-@,%s@]" y
+  | Add (y, z) -> Format.fprintf pf "@[%s@ +@ %s@]" y z
+  | Sub (y, z) -> Format.fprintf pf "@[%s@ -@ %s@]" y z
+  | FNeg y -> Format.fprintf pf "@[.-@,%s@]" y
+  | FAdd (y, z) -> Format.fprintf pf "@[%s@ .+@ %s@]" y z
+  | FSub (y, z) -> Format.fprintf pf "@[%s@ .-@ %s@]" y z
+  | FMul (y, z) -> Format.fprintf pf "@[%s@ .*@ %s@]" y z
+  | FDiv (y, z) -> Format.fprintf pf "@[%s@ ./@ %s@]" y z
+  | IfEq (a, b, y, z) ->
+      Format.fprintf pf
+	"@[<hv>@[<2>if@ @[%s@ =@ %s@]@]@ @[<2>then@ %a@]@ @[<2>else@ %a@]@ @[<2>endif@]@]"
+	a b pp y pp z
+  | IfLE (a, b, y, z) ->
+      Format.fprintf pf
+	"@[<hv>@[<2>if@ @[%s@ <=@ %s@]@]@ @[<2>then@ %a@]@ @[<2>else@ %a@]@ @[<2>endif@]@]"
+	a b pp y pp z
+  | Let ((a, ta), y, z) ->
+      Format.fprintf pf "@[<hv>@[<2>let@ %s@ :@ %a@ =@]@;<1 2>%a@ in@ %a@]"
+	a Type.pp ta pp y pp z
+  | Var a -> Format.fprintf pf "%s" a
+  | LetRec (f, z) ->
+      Format.fprintf pf "@[<hv>@[<2>let rec@ %s" (fst f.name);
+      List.iter (fun (argnam, argt) ->
+	Format.fprintf pf "@ @[<2>(%s@ :@ %a)@]" argnam Type.pp argt
+      ) f.args;
+      Format.fprintf pf "@ :@ %a@ =@]@;<1 2>%a@ in@ %a@]"
+	Type.pp (snd f.name) pp f.body pp z
+  | App (y, z) ->
+      Format.fprintf pf "@[%s" y;
+      List.iter (fun v ->
+	Format.fprintf pf "@ %s" v
+      ) z;
+      Format.fprintf pf "@]"
+  | Tuple [] -> Format.fprintf pf "@[()@]"
+  | Tuple (tv_hd :: tv_tl) ->
+      Format.fprintf pf "@[(%s" tv_hd;
+      List.iter (fun v ->
+	Format.fprintf pf ",@ %s" v
+      ) tv_tl;
+      Format.fprintf pf ")@]"
+  | LetTuple (tvs, tname, cont) ->
+      Format.fprintf pf "@[<hv>@[<2>let tuple@ (";
+      begin match tvs with
+      | [] -> ()
+      | ((elemnam_hd, elemt_hd) :: tvs_tl) ->
+	  Format.fprintf pf "@[<2>%s@ :@ %a@]" elemnam_hd Type.pp elemt_hd;
+	  List.iter (fun (elemnam, elemt) ->
+	    Format.fprintf pf ",@ @[<2>%s@ :@ %a@]" elemnam Type.pp elemt
+	  ) tvs_tl
+      end;
+      Format.fprintf pf ")@ =@]@;<1 2>%s@ in@ %a@]" tname pp cont
+  | Get (y, z) ->
+      Format.fprintf pf "@[%s.(%s)@]" y z
+  | Put (y, z, w) ->
+      Format.fprintf pf "@[%s.(%s)@ <-@ %s@]" y z w
+  | ExtArray y ->
+      Format.fprintf pf "@[%s%s@]" "@@" y
+  | ExtFunApp (y, z) ->
+      Format.fprintf pf "@[%s%s" "@" y;
+      List.iter (fun v ->
+	Format.fprintf pf "@ %s" v
+      ) z;
+      Format.fprintf pf "@]"
+  end

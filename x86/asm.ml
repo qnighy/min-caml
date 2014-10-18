@@ -1,7 +1,10 @@
 (* 2オペランドではなく3オペランドのx86アセンブリもどき *)
 
+open Loc
+
 type id_or_imm = V of Id.t | C of int
-type t = (* 命令の列 (caml2html: sparcasm_t) *)
+type t = t_real Loc.loc
+and t_real = (* 命令の列 (caml2html: sparcasm_t) *)
   | Ans of exp
   | Let of (Id.t * Type.t) * exp * t
 and exp = (* 一つ一つの命令に対応する式 (caml2html: sparcasm_exp) *)
@@ -74,15 +77,17 @@ let rec fv_exp = function
   | IfFEq(x, y, e1, e2) | IfFLE(x, y, e1, e2) -> x :: y :: remove_and_uniq S.empty (fv e1 @ fv e2) (* uniq here just for efficiency *)
   | CallCls(x, ys, zs) -> x :: ys @ zs
   | CallDir(_, ys, zs) -> ys @ zs
-and fv = function
+and fv el =
+  match el.loc_val with
   | Ans(exp) -> fv_exp exp
   | Let((x, t), exp, e) ->
       fv_exp exp @ remove_and_uniq (S.singleton x) (fv e)
 let fv e = remove_and_uniq S.empty (fv e)
 
 let rec concat e1 xt e2 =
-  match e1 with
+  loc_inherit e1 begin match e1.loc_val with
   | Ans(exp) -> Let(xt, exp, e2)
   | Let(yt, exp, e1') -> Let(yt, exp, concat e1' xt e2)
+  end
 
 let align i = (if i mod 8 = 0 then i else i + 4)

@@ -1,5 +1,6 @@
 type closure = { entry : Id.l; actual_fv : Id.t list }
-type t =
+type t = t_real Loc.loc
+and t_real =
   | Unit
   | Int of int
   | Float of float

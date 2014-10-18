@@ -1,8 +1,10 @@
+open Loc
 open KNormal
 
 let find x env = try M.find x env with Not_found -> x (* 置換のための関数 (caml2html: beta_find) *)
 
-let rec g env = function (* β簡約ルーチン本体 (caml2html: beta_g) *)
+let rec g env el = (* β簡約ルーチン本体 (caml2html: beta_g) *)
+  loc_inherit el begin match el.loc_val with
   | Unit -> Unit
   | Int(i) -> Int(i)
   | Float(d) -> Float(d)
@@ -18,9 +20,9 @@ let rec g env = function (* β簡約ルーチン本体 (caml2html: beta_g) *)
   | IfLE(x, y, e1, e2) -> IfLE(find x env, find y env, g env e1, g env e2)
   | Let((x, t), e1, e2) -> (* letのβ簡約 (caml2html: beta_let) *)
       (match g env e1 with
-      | Var(y) ->
+      | {loc_val = Var(y)} ->
 	  Format.eprintf "beta-reducing %s = %s@." x y;
-	  g (M.add x y env) e2
+	  (g (M.add x y env) e2).loc_val
       | e1' ->
 	  let e2' = g env e2 in
 	  Let((x, t), e1', e2'))
@@ -34,5 +36,6 @@ let rec g env = function (* β簡約ルーチン本体 (caml2html: beta_g) *)
   | App(g, xs) -> App(find g env, List.map (fun x -> find x env) xs)
   | ExtArray(x) -> ExtArray(x)
   | ExtFunApp(x, ys) -> ExtFunApp(x, List.map (fun y -> find y env) ys)
+  end
 
 let f = g M.empty

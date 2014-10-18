@@ -1,10 +1,12 @@
 (* rename identifiers to make them unique (alpha-conversion) *)
 
+open Loc
 open KNormal
 
 let find x env = try M.find x env with Not_found -> x
 
-let rec g env = function (* α変換ルーチン本体 (caml2html: alpha_g) *)
+let rec g env el = (* α変換ルーチン本体 (caml2html: alpha_g) *)
+  loc_inherit el begin match el.loc_val with
   | Unit -> Unit
   | Int(i) -> Int(i)
   | Float(d) -> Float(d)
@@ -42,5 +44,6 @@ let rec g env = function (* α変換ルーチン本体 (caml2html: alpha_g) *)
   | Put(x, y, z) -> Put(find x env, find y env, find z env)
   | ExtArray(x) -> ExtArray(x)
   | ExtFunApp(x, ys) -> ExtFunApp(x, List.map (fun y -> find y env) ys)
+  end
 
 let f = g M.empty

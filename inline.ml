@@ -1,15 +1,18 @@
+open Loc
 open KNormal
 
 (* インライン展開する関数の最大サイズ (caml2html: inline_threshold) *)
 let threshold = ref 0 (* Mainで-inlineオプションによりセットされる *)
 
-let rec size = function
+let rec size el =
+  match el.loc_val with
   | IfEq(_, _, e1, e2) | IfLE(_, _, e1, e2)
   | Let(_, e1, e2) | LetRec({ body = e1 }, e2) -> 1 + size e1 + size e2
   | LetTuple(_, _, e) -> 1 + size e
   | _ -> 1
 
-let rec g env = function (* インライン展開ルーチン本体 (caml2html: inline_g) *)
+let rec g env el = (* インライン展開ルーチン本体 (caml2html: inline_g) *)
+  loc_inherit el begin match el.loc_val with
   | IfEq(x, y, e1, e2) -> IfEq(x, y, g env e1, g env e2)
   | IfLE(x, y, e1, e2) -> IfLE(x, y, g env e1, g env e2)
   | Let(xt, e1, e2) -> Let(xt, g env e1, g env e2)
@@ -25,8 +28,9 @@ let rec g env = function (* インライン展開ルーチン本体 (caml2html: inline_g) *)
 	  M.empty
 	  zs
 	  ys in
-      Alpha.g env' e
+      (Alpha.g env' e).loc_val
   | LetTuple(xts, y, e) -> LetTuple(xts, y, g env e)
   | e -> e
+  end
 
 let f e = g M.empty e

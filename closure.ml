@@ -1,5 +1,8 @@
+open Loc
+
 type closure = { entry : Id.l; actual_fv : Id.t list }
-type t = (* クロージャ変換後の式 (caml2html: closure_t) *)
+type t = t_real Loc.loc
+and t_real = (* クロージャ変換後の式 (caml2html: closure_t) *)
   | Unit
   | Int of int
   | Float of float
@@ -29,7 +32,8 @@ type fundef = { name : Id.l * Type.t;
 		body : t }
 type prog = Prog of fundef list * t
 
-let rec fv = function
+let rec fv el =
+  match el.loc_val with
   | Unit | Int(_) | Float(_) | ExtArray(_) -> S.empty
   | Neg(x) | FNeg(x) -> S.singleton x
   | Add(x, y) | Sub(x, y) | FAdd(x, y) | FSub(x, y) | FMul(x, y) | FDiv(x, y) | Get(x, y) -> S.of_list [x; y]
@@ -44,7 +48,8 @@ let rec fv = function
 
 let toplevel : fundef list ref = ref []
 
-let rec g env known = function (* クロージャ変換ルーチン本体 (caml2html: closure_g) *)
+let rec g env known el = (* クロージャ変換ルーチン本体 (caml2html: closure_g) *)
+  loc_inherit el begin match el.loc_val with
   | KNormal.Unit -> Unit
   | KNormal.Int(i) -> Int(i)
   | KNormal.Float(d) -> Float(d)
@@ -88,7 +93,7 @@ let rec g env known = function (* クロージャ変換ルーチン本体 (caml2html: closure
 	MakeCls((x, t), { entry = Id.L(x); actual_fv = zs }, e2') (* 出現していたら削除しない *)
       else
 	(Format.eprintf "eliminating closure(s) %s@." x;
-	 e2') (* 出現しなければMakeClsを削除 *)
+	 e2'.loc_val) (* 出現しなければMakeClsを削除 *)
   | KNormal.App(x, ys) when S.mem x known -> (* 関数適用の場合 (caml2html: closure_app) *)
       Format.eprintf "directly applying %s@." x;
       AppDir(Id.L(x), ys)
@@ -99,13 +104,15 @@ let rec g env known = function (* クロージャ変換ルーチン本体 (caml2html: closure
   | KNormal.Put(x, y, z) -> Put(x, y, z)
   | KNormal.ExtArray(x) -> ExtArray(Id.L(x))
   | KNormal.ExtFunApp(x, ys) -> AppDir(Id.L("min_caml_" ^ x), ys)
+  end
 
 let f e =
   toplevel := [];
   let e' = g M.empty S.empty e in
   Prog(List.rev !toplevel, e')
 
-let rec pp_t pf = function
+let rec pp_t pf el =
+  match el.loc_val with
   | Unit -> Format.fprintf pf "()"
   | Int i -> Format.fprintf pf "%d" i
   | Float f -> Format.fprintf pf "%.1g" f

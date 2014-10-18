@@ -1,3 +1,4 @@
+open Loc
 open Asm
 
 external gethi : float -> int32 = "gethi"
@@ -44,9 +45,13 @@ let rec shuffle sw xys =
   | xys, acyc -> acyc @ shuffle sw xys
 
 type dest = Tail | NonTail of Id.t (* 末尾かどうかを表すデータ型 (caml2html: emit_dest) *)
-let rec g oc = function (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
-  | dest, Ans(exp) -> g' oc (dest, exp)
-  | dest, Let((x, t), exp, e) ->
+let rec g oc (dest, el) = (* 命令列のアセンブリ生成 (caml2html: emit_g) *)
+  (if el.loc_start != Lexing.dummy_pos then
+    Printf.fprintf oc "\t\t# %s\n" (loc_str el)
+  );
+  match el.loc_val with
+  | Ans(exp) -> g' oc (dest, exp)
+  | Let((x, t), exp, e) ->
       g' oc (NonTail(x), exp);
       g oc (dest, e)
 and g' oc = function (* 各命令のアセンブリ生成 (caml2html: emit_gprime) *)

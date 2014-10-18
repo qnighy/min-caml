@@ -1,3 +1,4 @@
+open Loc
 open Asm
 
 (* for register coalescing *)
@@ -24,7 +25,8 @@ let rec target' src (dest, t) = function
       true, (target_args src regs 0 ys @
 	     target_args src fregs 0 zs)
   | _ -> false, []
-and target src dest = function (* register targeting (caml2html: regalloc_target) *)
+and target src dest el = (* register targeting (caml2html: regalloc_target) *)
+  match el.loc_val with
   | Ans(exp) -> target' src dest exp
   | Let(xt, exp, e) ->
       let c1, rs1 = target' src xt exp in
@@ -38,7 +40,8 @@ and target_args src all n = function (* auxiliary function for Call *)
   | _ :: ys -> target_args src all (n + 1) ys
 (* "register sourcing" (?) as opposed to register targeting *)
 (* ¡Êx86¤Î2¥ª¥Ú¥é¥ó¥ÉÌ¿Îá¤Î¤¿¤á¤Îregister coalescing¡Ë *)
-let rec source t = function
+let rec source t el =
+  match el.loc_val with
   | Ans(exp) -> source' t exp
   | Let(_, _, e) -> source t e
 and source' t = function
@@ -106,12 +109,13 @@ let find' x' regenv =
   | V(x) -> V(find x Type.Int regenv)
   | c -> c
 
-let rec g dest cont regenv = function (* Ì¿ÎáÎó¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_g) *)
-  | Ans(exp) -> g'_and_restore dest cont regenv exp
+let rec g dest cont regenv el = (* Ì¿ÎáÎó¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_g) *)
+  match el.loc_val with
+  | Ans(exp) -> g'_and_restore dest cont regenv (loc_inherit el exp)
   | Let((x, t) as xt, exp, e) ->
       assert (not (M.mem x regenv));
       let cont' = concat e dest cont in
-      let (e1', regenv1) = g'_and_restore xt cont' regenv exp in
+      let (e1', regenv1) = g'_and_restore xt cont' regenv (loc_inherit el exp) in
       let (_call, targets) = target x dest cont' in
       let sources = source t e1' in
       (* ¥ì¥¸¥¹¥¿´Ö¤Îmov¤è¤ê¥á¥â¥ê¤ò²ð¤¹¤ëswap¤Î¤Û¤¦¤¬ÌäÂê¤Ê¤Î¤Ç¡¢sources¤è¤êtargets¤òÍ¥Àè *)
@@ -122,7 +126,7 @@ let rec g dest cont regenv = function (* Ì¿ÎáÎó¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: re
 	  let save =
 	    try Save(M.find y regenv, y)
 	    with Not_found -> Nop in	    
-	  (seq(save, concat e1' (r, t) e2'), regenv2)
+	  (loc_inherit e (seq(save, concat e1' (r, t) e2')), regenv2)
       | Alloc(r) ->
 	  let (e2', regenv2) = g dest cont (add x r regenv1) e in
 	  (concat e1' (r, t) e2', regenv2))
@@ -130,8 +134,9 @@ and g'_and_restore dest cont regenv exp = (* »ÈÍÑ¤µ¤ì¤ëÊÑ¿ô¤ò¥¹¥¿¥Ã¥¯¤«¤é¥ì¥¸¥¹¥
   try g' dest cont regenv exp
   with NoReg(x, t) ->
     ((* Format.eprintf "restoring %s@." x; *)
-     g dest cont regenv (Let((x, t), Restore(x), Ans(exp))))
-and g' dest cont regenv = function (* ³ÆÌ¿Îá¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_gprime) *)
+     g dest cont regenv (loc_inherit exp (Let((x, t), Restore(x), loc_inherit exp (Ans(exp.loc_val))))))
+and g' dest cont regenv el = (* ³ÆÌ¿Îá¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_gprime) *)
+  let (x,y) = begin match el.loc_val with
   | Nop | Set _ | SetL _ | Comment _ | Restore _ as exp -> (Ans(exp), regenv)
   | Mov(x) -> (Ans(Mov(find x Type.Int regenv)), regenv)
   | Neg(x) -> (Ans(Neg(find x Type.Int regenv)), regenv)
@@ -155,6 +160,7 @@ and g' dest cont regenv = function (* ³ÆÌ¿Îá¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regal
   | CallCls(x, ys, zs) as exp -> g'_call dest cont regenv exp (fun ys zs -> CallCls(find x Type.Int regenv, ys, zs)) ys zs
   | CallDir(l, ys, zs) as exp -> g'_call dest cont regenv exp (fun ys zs -> CallDir(l, ys, zs)) ys zs
   | Save(x, y) -> assert false
+  end in (loc_inherit el x, y)
 and g'_if dest cont regenv exp constr e1 e2 = (* if¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_if) *)
   let (e1', regenv1) = g dest cont regenv e1 in
   let (e2', regenv2) = g dest cont regenv e2 in
@@ -170,22 +176,22 @@ and g'_if dest cont regenv exp constr e1 e2 = (* if¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html
         with Not_found -> regenv')
       M.empty
       (fv cont) in
-  (List.fold_left
+  ((List.fold_left
      (fun e x ->
        if x = fst dest || not (M.mem x regenv) || M.mem x regenv' then e else
-       seq(Save(M.find x regenv, x), e)) (* ¤½¤¦¤Ç¤Ê¤¤ÊÑ¿ô¤ÏÊ¬´ôÄ¾Á°¤Ë¥»¡¼¥Ö *)
-     (Ans(constr e1' e2'))
-     (fv cont),
+       loc_inherit e (seq(Save(M.find x regenv, x), e))) (* ¤½¤¦¤Ç¤Ê¤¤ÊÑ¿ô¤ÏÊ¬´ôÄ¾Á°¤Ë¥»¡¼¥Ö *)
+     (loc_dummy (Ans(constr e1' e2')))
+     (fv cont)).loc_val,
    regenv')
 and g'_call dest cont regenv exp constr ys zs = (* ´Ø¿ô¸Æ¤Ó½Ð¤·¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_call) *)
-  (List.fold_left
+  ((List.fold_left
      (fun e x ->
        if x = fst dest || not (M.mem x regenv) then e else
-       seq(Save(M.find x regenv, x), e))
-     (Ans(constr
+       loc_dummy (seq(Save(M.find x regenv, x), e)))
+     (loc_dummy (Ans(constr
 	    (List.map (fun y -> find y Type.Int regenv) ys)
-	    (List.map (fun z -> find z Type.Float regenv) zs)))
-     (fv cont),
+	    (List.map (fun z -> find z Type.Float regenv) zs))))
+     (fv cont)).loc_val,
    M.empty)
 
 let h { name = Id.L(x); args = ys; fargs = zs; body = e; ret = t } = (* ´Ø¿ô¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_h) *)
@@ -215,11 +221,11 @@ let h { name = Id.L(x); args = ys; fargs = zs; body = e; ret = t } = (* ´Ø¿ô¤Î¥ì
     | Type.Unit -> Id.gentmp Type.Unit
     | Type.Float -> fregs.(0)
     | _ -> regs.(0) in
-  let (e', regenv') = g (a, t) (Ans(Mov(a))) regenv e in
+  let (e', regenv') = g (a, t) (loc_dummy (Ans(Mov(a)))) regenv e in
   { name = Id.L(x); args = arg_regs; fargs = farg_regs; body = e'; ret = t }
 
 let f (Prog(data, fundefs, e)) = (* ¥×¥í¥°¥é¥àÁ´ÂÎ¤Î¥ì¥¸¥¹¥¿³ä¤êÅö¤Æ (caml2html: regalloc_f) *)
   Format.eprintf "register allocation: may take some time (up to a few minutes, depending on the size of functions)@.";
   let fundefs' = List.map h fundefs in
-  let e', regenv' = g (Id.gentmp Type.Unit, Type.Unit) (Ans(Nop)) M.empty e in
+  let e', regenv' = g (Id.gentmp Type.Unit, Type.Unit) (loc_dummy (Ans(Nop))) M.empty e in
   Prog(data, fundefs', e')

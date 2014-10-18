@@ -1,5 +1,7 @@
 (* give names to intermediate values (K-normalization) *)
 
+open Loc
+
 type t = (* K正規化後の式 (caml2html: knormal_t) *)
   | Unit
   | Int of int
@@ -49,12 +51,14 @@ let insert_let (e, t) k = (* letを挿入する補助関数 (caml2html: knormal_insert) *
       let e', t' = k x in
       Let((x, t), e, e'), t'
 
-let rec g env = function (* K正規化ルーチン本体 (caml2html: knormal_g) *)
+let rec g env el = (* K正規化ルーチン本体 (caml2html: knormal_g) *)
+  match el.loc_val with
   | Syntax.Unit -> Unit, Type.Unit
   | Syntax.Bool(b) -> Int(if b then 1 else 0), Type.Int (* 論理値true, falseを整数1, 0に変換 (caml2html: knormal_bool) *)
   | Syntax.Int(i) -> Int(i), Type.Int
   | Syntax.Float(d) -> Float(d), Type.Float
-  | Syntax.Not(e) -> g env (Syntax.If(e, Syntax.Bool(false), Syntax.Bool(true)))
+  | Syntax.Not(e) ->
+      g env (loc_dummy (Syntax.If(e, loc_dummy (Syntax.Bool(false)), loc_dummy (Syntax.Bool(true)))))
   | Syntax.Neg(e) ->
       insert_let (g env e)
 	(fun x -> Neg(x), Type.Int)
@@ -86,23 +90,25 @@ let rec g env = function (* K正規化ルーチン本体 (caml2html: knormal_g) *)
 	(fun x -> insert_let (g env e2)
 	    (fun y -> FDiv(x, y), Type.Float))
   | Syntax.Eq _ | Syntax.LE _ as cmp ->
-      g env (Syntax.If(cmp, Syntax.Bool(true), Syntax.Bool(false)))
-  | Syntax.If(Syntax.Not(e1), e2, e3) -> g env (Syntax.If(e1, e3, e2)) (* notによる分岐を変換 (caml2html: knormal_not) *)
-  | Syntax.If(Syntax.Eq(e1, e2), e3, e4) ->
+      g env (loc_dummy (Syntax.If(loc_dummy cmp, loc_dummy (Syntax.Bool(true)), loc_dummy (Syntax.Bool(false)))))
+  | Syntax.If({loc_val = Syntax.Not(e1)}, e2, e3) ->
+      g env (loc_dummy (Syntax.If(e1, e3, e2))) (* notによる分岐を変換 (caml2html: knormal_not) *)
+  | Syntax.If({loc_val = Syntax.Eq(e1, e2)}, e3, e4) ->
       insert_let (g env e1)
 	(fun x -> insert_let (g env e2)
 	    (fun y ->
 	      let e3', t3 = g env e3 in
 	      let e4', t4 = g env e4 in
 	      IfEq(x, y, e3', e4'), t3))
-  | Syntax.If(Syntax.LE(e1, e2), e3, e4) ->
+  | Syntax.If({loc_val = Syntax.LE(e1, e2)}, e3, e4) ->
       insert_let (g env e1)
 	(fun x -> insert_let (g env e2)
 	    (fun y ->
 	      let e3', t3 = g env e3 in
 	      let e4', t4 = g env e4 in
 	      IfLE(x, y, e3', e4'), t3))
-  | Syntax.If(e1, e2, e3) -> g env (Syntax.If(Syntax.Eq(e1, Syntax.Bool(false)), e3, e2)) (* 比較のない分岐を変換 (caml2html: knormal_if) *)
+  | Syntax.If(e1, e2, e3) ->
+      g env (loc_dummy (Syntax.If(loc_dummy(Syntax.Eq(e1, loc_dummy(Syntax.Bool(false)))), e3, e2))) (* 比較のない分岐を変換 (caml2html: knormal_if) *)
   | Syntax.Let((x, t), e1, e2) ->
       let e1', t1 = g env e1 in
       let e2', t2 = g (M.add x t env) e2 in
@@ -117,7 +123,7 @@ let rec g env = function (* K正規化ルーチン本体 (caml2html: knormal_g) *)
       let e2', t2 = g env' e2 in
       let e1', t1 = g (M.add_list yts env') e1 in
       LetRec({ name = (x, t); args = yts; body = e1' }, e2'), t2
-  | Syntax.App(Syntax.Var(f), e2s) when not (M.mem f env) -> (* 外部関数の呼び出し (caml2html: knormal_extfunapp) *)
+  | Syntax.App({loc_val = Syntax.Var(f)}, e2s) when not (M.mem f env) -> (* 外部関数の呼び出し (caml2html: knormal_extfunapp) *)
       (match M.find f !Typing.extenv with
       | Type.Fun(_, t) ->
 	  let rec bind xs = function (* "xs" are identifiers for the arguments *)

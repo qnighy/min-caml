@@ -1,5 +1,6 @@
 (* type inference/reconstruction *)
 
+open Loc
 open Syntax
 
 exception Unify of Type.t * Type.t
@@ -22,7 +23,8 @@ let rec deref_typ = function (* 型変数を中身でおきかえる関数 (caml2html: typing_
       t'
   | t -> t
 let rec deref_id_typ (x, t) = (x, deref_typ t)
-let rec deref_term = function
+let rec deref_term el =
+  loc_inherit el begin match el.loc_val with
   | Not(e) -> Not(deref_term e)
   | Neg(e) -> Neg(deref_term e)
   | Add(e1, e2) -> Add(deref_term e1, deref_term e2)
@@ -48,6 +50,7 @@ let rec deref_term = function
   | Get(e1, e2) -> Get(deref_term e1, deref_term e2)
   | Put(e1, e2, e3) -> Put(deref_term e1, deref_term e2, deref_term e3)
   | e -> e
+  end
 
 let rec occur r1 = function (* occur check (caml2html: typing_occur) *)
   | Type.Fun(t2s, t2) -> List.exists (occur r1) t2s || occur r1 t2
@@ -82,7 +85,7 @@ let rec unify t1 t2 = (* 型が合うように、型変数への代入をする (caml2html: typing
 
 let rec g env e = (* 型推論ルーチン (caml2html: typing_g) *)
   try
-    match e with
+    match e.loc_val with
     | Unit -> Type.Unit
     | Bool(_) -> Type.Bool
     | Int(_) -> Type.Int
@@ -158,6 +161,13 @@ let f e =
   | _ -> Format.eprintf "warning: final result does not have type unit@.");
 *)
   (try unify Type.Unit (g M.empty e)
-  with Unify _ -> failwith "top level does not have type unit");
+  with
+  | Unify _ -> failwith "top level does not have type unit"
+  | Error (e, t1, t2) ->
+      failwith (
+	Format.asprintf
+	  "@[typing@ error@ near@ %s@ :@ can't@ unify@ %a@ with@ %a@]"
+	  (loc_str e) Type.pp t1 Type.pp t2)
+  );
   extenv := M.map deref_typ !extenv;
   deref_term e

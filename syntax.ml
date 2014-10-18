@@ -1,4 +1,7 @@
-type t = (* MinCamlの構文を表現するデータ型 (caml2html: syntax_t) *)
+open Loc
+
+type t = t_real loc
+and t_real = (* MinCamlの構文を表現するデータ型 (caml2html: syntax_t) *)
   | Unit
   | Bool of bool
   | Int of int
@@ -38,49 +41,8 @@ let cond_paren_printf cond pf =
   end else
     Format.fprintf pf
 
-open Lexing
-
-let pos_str s =
-  if s.pos_fname = "" then
-    Printf.sprintf "line %d, character %d" s.pos_lnum (s.pos_cnum - s.pos_bol)
-  else
-    Printf.sprintf
-      "file \"%s\", line %d, character %d"
-	s.pos_fname s.pos_lnum (s.pos_cnum - s.pos_bol)
-
-let pos_str2 s e =
-  if s.pos_fname != e.pos_fname then
-    Printf.sprintf
-      "file \"%s\", line %d, character %d - file \"%s\", line %d, character %d"
-      s.pos_fname s.pos_lnum (s.pos_cnum - s.pos_bol)
-      e.pos_fname e.pos_lnum (e.pos_cnum - e.pos_bol)
-  else if s.pos_lnum != e.pos_lnum then
-    if s.pos_fname = "" then
-      Printf.sprintf
-	"line %d, character %d - line %d, character %d"
-	s.pos_lnum (s.pos_cnum - s.pos_bol)
-	e.pos_lnum (e.pos_cnum - e.pos_bol)
-    else
-      Printf.sprintf
-	"file \"%s\", line %d, character %d - line %d, character %d"
-	s.pos_fname
-	s.pos_lnum (s.pos_cnum - s.pos_bol)
-	e.pos_lnum (e.pos_cnum - e.pos_bol)
-  else
-    if s.pos_fname = "" then
-      Printf.sprintf
-	"line %d, characters %d - %d" s.pos_lnum
-	(s.pos_cnum - s.pos_bol)
-	(e.pos_cnum - e.pos_bol)
-    else
-      Printf.sprintf
-	"file \"%s\", line %d, characters %d - %d" s.pos_fname s.pos_lnum
-	(s.pos_cnum - s.pos_bol)
-	(e.pos_cnum - e.pos_bol)
-
-let loc_str l = pos_str2 l.loc_start l.loc_end
-
-let rec pp_prec prec pf = function
+let rec pp_prec prec pf lx =
+  match lx.loc_val with
   | Unit -> Format.fprintf pf "()"
   | Bool b -> Format.fprintf pf "%b" b
   | Int i -> Format.fprintf pf "%d" i
@@ -116,7 +78,7 @@ let rec pp_prec prec pf = function
       cond_paren_printf (prec < 50) pf "@[<2>%a@ <=@ %a@]"
         (pp_prec 50) x (pp_prec 49) y
   | If (x, y, z) ->
-      begin match z with
+      begin match z.loc_val with
       | If _ ->
           cond_paren_printf (prec < 80) pf
             "@[<2>if@ %a@ then@ %a@]@ else@ %a"

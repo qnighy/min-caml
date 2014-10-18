@@ -1,5 +1,6 @@
 {
 (* lexerが利用する変数、関数、型などの定義 *)
+open Loc
 open Parser
 open Type
 }
@@ -88,7 +89,7 @@ rule token = parse
     { failwith
 	(Printf.sprintf "unknown token %s near %s"
 	  (Lexing.lexeme lexbuf)
-	  (Syntax.pos_str2
+	  (pos_str2
 	    (Lexing.lexeme_start_p lexbuf)
 	    (Lexing.lexeme_end_p lexbuf))) }
 and comment = parse

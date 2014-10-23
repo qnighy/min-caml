@@ -3,7 +3,12 @@ let limit = ref 1000
 let rec iter n e = (* 最適化処理をくりかえす (caml2html: main_iter) *)
   Format.eprintf "iteration %d@." n;
   if n = 0 then e else
-  let e' = Elim.f (ConstFold.f (Inline.f (Assoc.f (Beta.f e)))) in
+  let e' = CommonSubexpr.f e in
+  let e' = Beta.f e' in
+  let e' = Assoc.f e' in
+  let e' = Inline.f e' in
+  let e' = ConstFold.f e' in
+  let e' = Elim.f e' in
   if e = e' then e else
   iter (n - 1) e'
 

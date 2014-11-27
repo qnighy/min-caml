@@ -37,7 +37,9 @@ min_caml_print_int:
 	popl	%ebp
 	ret
 .globl min_caml_print_byte
+.globl min_caml_print_char
 min_caml_print_byte:
+min_caml_print_char:
 	pushl	%ebp
 	movl	%esp, %ebp
 	ALIGNSTACK1

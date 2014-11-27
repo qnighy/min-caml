@@ -34,6 +34,10 @@ rule token = parse
     { MINUS }
 | '+' (* +.より後回しにしなくても良い? 最長一致? *)
     { PLUS }
+| '*' (* *.より後回しにしなくても良い? 最長一致? *)
+    { AST }
+| '/' (* *.より後回しにしなくても良い? 最長一致? *)
+    { SLASH }
 | "-."
     { MINUS_DOT }
 | "+."
@@ -71,6 +75,8 @@ rule token = parse
 | '_'
     { IDENT(Id.gentmp Type.Unit) }
 | "Array.create" (* [XX] ad hoc *)
+    { ARRAY_CREATE }
+| "create_array" (* [XX] ad hoc *)
     { ARRAY_CREATE }
 | '.'
     { DOT }

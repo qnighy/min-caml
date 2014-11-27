@@ -13,6 +13,8 @@ and exp = (* 一つ一つの命令に対応する式 *)
   | Neg of Id.t
   | Add of Id.t * id_or_imm
   | Sub of Id.t * id_or_imm
+  | Div of Id.t * id_or_imm
+  | Mul of Id.t * id_or_imm
   | Slw of Id.t * id_or_imm
   | Lwz of Id.t * id_or_imm
   | Stw of Id.t * Id.t * id_or_imm
@@ -79,7 +81,7 @@ let fv_id_or_imm = function V (x) -> [x] | _ -> []
 let rec fv_exp = function
   | Nop | Li (_) | FLi (_) | SetL (_) | Comment (_) | Restore (_) -> []
   | Mr (x) | Neg (x) | FMr (x) | FNeg (x) | Save (x, _) -> [x]
-  | Add (x, y') | Sub (x, y') | Slw (x, y') | Lfd (x, y') | Lwz (x, y') -> 
+  | Add (x, y') | Sub (x, y') | Mul (x, y') | Div (x, y') | Slw (x, y') | Lfd (x, y') | Lwz (x, y') -> 
       x :: fv_id_or_imm y'
   | FAdd (x, y) | FSub (x, y) | FMul (x, y) | FDiv (x, y) ->
       [x; y]

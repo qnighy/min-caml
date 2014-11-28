@@ -40,8 +40,8 @@ TRASH = $(TESTS:%=test/%.s) $(TESTS:%=test/%) $(TESTS:%=test/%.res) $(TESTS:%=te
 
 test/%.s: $(RESULT) test/%.ml
 	./$(RESULT) test/$*
-test/%: test/%.s libmincaml.S stub.c
-	$(CC) $(CFLAGS) -m32 $^ -lm -o $@
+test/%: libmincaml.S test/%.s
+	../../qkasm/qkasm $^ > $@
 test/%.res: test/%
 	$< > $@
 test/%.ans: test/%.ml
@@ -51,8 +51,8 @@ test/%.cmp: test/%.res test/%.ans
 
 raytracer/min-rt.s: $(RESULT) raytracer/min-rt.ml
 	./$(RESULT) raytracer/min-rt
-raytracer/min-rt: raytracer/min-rt.s libmincaml.S raytracer/globals.s stub.c
-	$(CC) $(CFLAGS) -m32 $^ -lm -o $@
+raytracer/min-rt: libmincaml.S kakeudon/floatLib.s raytracer/min-rt.s raytracer/globals.s
+	../../qkasm/qkasm $^ > $@
 
 min-caml.html: main.mli main.ml id.ml m.ml s.ml \
 		syntax.ml type.ml parser.mly lexer.mll typing.mli typing.ml kNormal.mli kNormal.ml \

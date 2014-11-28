@@ -1,4 +1,3 @@
-.data
 .align 8
 .globl min_caml_n_objects
 min_caml_n_objects:

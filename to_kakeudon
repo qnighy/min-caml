@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+ln -sf kakeudon/{*.ml{,i},libmincaml.S} .
+cd shootout; ln -sf kakeudon/Makefile .
+cd ../bytemark; ln -sf kakeudon/Makefile .
+cd ../min-rt; ln -sf kakeudon/globals.s .
+cd ..

@@ -22,6 +22,82 @@ let rec xor x y = if x then if y then false else true else y in
 let rec fabs x = if x > 0.0 then x else -. x in
 let rec fhalf x = x *. 0.5 in
 
+let rec ignore x = () in
+
+let rec hoge _ =
+  print_char 97;
+  hoge ()
+in
+
+let rec read_int _ =
+  let rec read_int_1 x =
+    let ch = read_char () in
+    if 48 <= ch then
+      read_int_1 (x * 8 + x * 2 + (ch - 48))
+    else x
+  in
+  let rec read_int_0 _ =
+    let ch = read_char () in
+    if 48 <= ch then
+      read_int_1 (ch - 48)
+    else if ch = 45 then
+      -(read_int_1 0)
+    else read_int_0 ()
+  in
+  read_int_0 ()
+in
+
+let rec read_float _ =
+  let rec read_float_2 x =
+    let ch = read_char () in
+    if 48 <= ch then
+      read_float_2 (x *. 10.0 +. float_of_int (ch - 48)) *. 0.1
+    else x
+  in
+  let rec read_float_1 x =
+    let ch = read_char () in
+    if 48 <= ch then
+      read_float_1 (x *. 10.0 +. float_of_int (ch - 48))
+    else if ch = 46 then
+      read_float_2 x
+    else x
+  in
+  let rec read_float_0 _ =
+    let ch = read_char () in
+    if 48 <= ch then
+      read_float_1 (float_of_int (ch - 48))
+    else if ch = 45 then
+      -. (read_float_1 0.0)
+    else read_float_0 ()
+  in
+  read_float_0 ()
+in
+
+let rec print_int x =
+  let rec print_int_loop z y x =
+    if x < y then (print_char z; x)
+    else print_int_loop (z + 1) y (x - y)
+  in
+  if x < 1 then print_char 48
+  else if x < 10 then
+    ignore (print_int_loop 48 1 x)
+  else if x < 100 then
+    ignore (
+      print_int_loop 48 1 (
+	print_int_loop 48 10 x))
+  else if x < 1000 then
+    ignore (
+      print_int_loop 48 1 (
+	print_int_loop 48 10 (
+	  print_int_loop 48 100 x)))
+  else
+    ignore (
+      print_int_loop 48 1 (
+	print_int_loop 48 10 (
+	  print_int_loop 48 100 (
+	    print_int_loop 48 1000 x))))
+in
+
 (* Éä¹æ *)
 let rec sgn x =
   if fiszero x then 0.0

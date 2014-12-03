@@ -94,12 +94,14 @@ let rec g env e = (* 型推論ルーチン (caml2html: typing_g) *)
 	unify Type.Bool (g env e);
 	Type.Bool
     | Neg(e) ->
-	unify Type.Int (g env e);
-	Type.Int
+	let t = Type.gentyp () in
+	unify t (g env e);
+	t
     | Add(e1, e2) | Sub(e1, e2) -> (* 足し算（と引き算）の型推論 (caml2html: typing_add) *)
-	unify Type.Int (g env e1);
-	unify Type.Int (g env e2);
-	Type.Int
+	let t = Type.gentyp () in
+	unify t (g env e1);
+	unify t (g env e2);
+	t
     | FNeg(e) ->
 	unify Type.Float (g env e);
 	Type.Float

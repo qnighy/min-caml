@@ -63,16 +63,34 @@ let rec g env el = (* K正規化ルーチン本体 (caml2html: knormal_g) *)
   | Syntax.Not(e) ->
       g env (loc_dummy (Syntax.If(e, loc_dummy (Syntax.Bool(false)), loc_dummy (Syntax.Bool(true)))))
   | Syntax.Neg(e) ->
-      insert_let (g env e)
-	(fun x -> loc_inherit el (Neg(x)), Type.Int)
+      let _, t as g_e = g env e in
+      insert_let g_e
+	(fun x ->
+	  loc_inherit el begin match t with
+	  | Type.Int -> Neg(x)
+	  | Type.Float -> FNeg(x)
+	  | _ -> failwith "neg operand is not Int nor Float"
+	  end, t)
   | Syntax.Add(e1, e2) -> (* 足し算のK正規化 (caml2html: knormal_add) *)
-      insert_let (g env e1)
+      let _, t1 as g_e1 = g env e1 in
+      insert_let g_e1
 	(fun x -> insert_let (g env e2)
-	    (fun y -> loc_inherit el (Add(x, y)), Type.Int))
+	    (fun y ->
+	      loc_inherit el begin match t1 with
+	      | Type.Int -> Add(x, y)
+	      | Type.Float -> FAdd(x, y)
+	      | _ -> failwith "add operand is not Int nor Float"
+	      end, t1))
   | Syntax.Sub(e1, e2) ->
-      insert_let (g env e1)
+      let _, t1 as g_e1 = g env e1 in
+      insert_let g_e1
 	(fun x -> insert_let (g env e2)
-	    (fun y -> loc_inherit el (Sub(x, y)), Type.Int))
+	    (fun y ->
+	      loc_inherit el begin match t1 with
+	      | Type.Int -> Sub(x, y)
+	      | Type.Float -> FSub(x, y)
+	      | _ -> failwith "sub operand is not Int nor Float"
+	      end, t1))
   | Syntax.FNeg(e) ->
       insert_let (g env e)
 	(fun x -> loc_inherit el (FNeg(x)), Type.Float)

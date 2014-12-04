@@ -42,6 +42,8 @@ test/%.s: $(RESULT) test/%.ml
 	./$(RESULT) test/$*
 test/%: libmincaml.S test/%.s
 	../../qkasm/qkasm $^ > $@
+test/%.bin: test/% ../../qkasm/separator.dat test/%.in
+	cat $^ > $@
 test/%.res: test/%
 	$< > $@
 test/%.ans: test/%.ml
@@ -53,6 +55,8 @@ raytracer/min-rt.s: $(RESULT) raytracer/min-rt.ml
 	./$(RESULT) raytracer/min-rt
 raytracer/min-rt: libmincaml.S kakeudon/floatLib.s raytracer/min-rt.s raytracer/globals.s
 	../../qkasm/qkasm $^ > $@
+raytracer/min-rt.bin: raytracer/min-rt ../../qkasm/separator.dat raytracer/sld/contest.sld
+	cat $^ > $@
 
 min-caml.html: main.mli main.ml id.ml m.ml s.ml \
 		syntax.ml type.ml parser.mly lexer.mll typing.mli typing.ml kNormal.mli kNormal.ml \

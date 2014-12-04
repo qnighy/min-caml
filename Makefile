@@ -54,7 +54,7 @@ test/%.cmp: test/%.res test/%.ans
 raytracer/min-rt.s: $(RESULT) raytracer/min-rt.ml
 	./$(RESULT) raytracer/min-rt
 raytracer/min-rt: libmincaml.S kakeudon/floatLib.s raytracer/min-rt.s raytracer/globals.s
-	../../qkasm/qkasm $^ > $@
+	../../qkasm/qkasm -show-line $^ 2>lines.txt > $@
 raytracer/min-rt.bin: raytracer/min-rt ../../qkasm/separator.dat raytracer/sld/contest.sld
 	cat $^ > $@
 

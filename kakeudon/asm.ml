@@ -7,7 +7,7 @@ type t = (* 命令の列 *)
 and exp = (* 一つ一つの命令に対応する式 *)
   | Nop
   | Li of int
-  | FLi of Id.l
+  | FLi of int
   | SetL of Id.l
   | Mr of Id.t
   | Neg of Id.t

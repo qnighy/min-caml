@@ -2,6 +2,9 @@
 
 open Asm
 
+let int_repr_of_float x =
+  Int32.to_int (Int32.bits_of_float x) land ((1 lsl 32) - 1)
+
 let data = ref [] (* 浮動小数点数の定数テーブル *)
 
 let classify xts ini addf addi =
@@ -29,16 +32,7 @@ let expand xts ini addf addi =
 let rec g env = function (* 式の仮想マシンコード生成 *)
   | Closure.Unit -> Ans (Nop)
   | Closure.Int (i) -> Ans (Li (i))
-  | Closure.Float (d) -> 
-      let l = 
-	try
-	  let (l, _) = List.find (fun (_, d') -> d = d') !data in
-	    l
-	with Not_found ->
-	  let l = Id.L (Id.genid "l") in
-	    data := (l, d) :: !data;
-	    l in
-	Ans (FLi (l))
+  | Closure.Float (d) -> Ans (FLi (int_repr_of_float d))
   | Closure.Neg (x) -> Ans (Neg (x))
   | Closure.Add (x, y) -> Ans (Add (x, V (y)))
   | Closure.Sub (x, y) -> Ans (Sub (x, V (y)))

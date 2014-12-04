@@ -49,12 +49,9 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Nop) -> ()
   | (NonTail(x), Li(i)) ->
       Printf.fprintf oc "\tli\t%s, %d\n" (reg x) i
-  | (NonTail(x), FLi(Id.L(l))) ->
-      let s = load_label reg_tmp l in
-      (* TODO: use LWc1 *)
-      Printf.fprintf oc "%s" s;
-      Printf.fprintf oc "\tlw\t$at, 0(%s)\n" reg_tmp;
-      Printf.fprintf oc "\tmtc1\t$at, %s\n" (reg x)
+  | (NonTail(x), FLi(i)) ->
+      Printf.fprintf oc "\tli\t%s, %d\n" reg_tmp i;
+      Printf.fprintf oc "\tmtc1\t%s, %s\n" reg_tmp (reg x)
   | (NonTail(x), SetL(Id.L(y))) -> 
       let s = load_label x y in
       Printf.fprintf oc "%s" s
@@ -108,25 +105,15 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(x), FDiv(y, z)) -> 
       Printf.fprintf oc "\tdiv.s\t%s, %s, %s\n" (reg x) (reg y) (reg z)
   | (NonTail(x), Lfd(y, V(z))) ->
-      (* TODO: use LWc1 *)
       Printf.fprintf oc "\taddu\t$at, %s, %s\n" (reg y) (reg z);
-      Printf.fprintf oc "\tlw\t$at, 0($at)\n";
-      Printf.fprintf oc "\tmtc1\t$at, %s\n" (reg x)
+      Printf.fprintf oc "\tlwc1\t%s, 0($at)\n" (reg x)
   | (NonTail(x), Lfd(y, C(z))) -> 
-      (* TODO: use LWc1 *)
-      Printf.fprintf oc "\tlw\t$at, %d(%s)\n" z (reg y);
-      Printf.fprintf oc "\tmtc1\t$at, %s\n" (reg x)
+      Printf.fprintf oc "\tlwc1\t%s, %d(%s)\n" (reg x) z (reg y)
   | (NonTail(_), Stfd(x, y, V(z))) ->
-      (* TODO: use SWc1 *)
-      (* TODO: this is a little tricky *)
-      Printf.fprintf oc "\tmfc1\t$at, %s\n" (reg x);
-      Printf.fprintf oc "\taddu\t%s, %s, %s\n" (reg y) (reg y) (reg z);
-      Printf.fprintf oc "\tsw\t$at, 0(%s)\n" (reg y);
-      Printf.fprintf oc "\tsubu\t%s, %s, %s\n" (reg y) (reg y) (reg z)
+      Printf.fprintf oc "\taddu\t$at, %s, %s\n" (reg y) (reg z);
+      Printf.fprintf oc "\tswc1\t%s, 0($at)\n" (reg x)
   | (NonTail(_), Stfd(x, y, C(z))) ->
-      (* TODO: use SWc1 *)
-      Printf.fprintf oc "\tmfc1\t$at, %s\n" (reg x);
-      Printf.fprintf oc "\tsw\t$at, %d(%s)\n" z (reg y)
+      Printf.fprintf oc "\tswc1\t%s, %d(%s)\n" (reg x) z (reg y)
   | (NonTail(_), Comment(s)) -> Printf.fprintf oc "#\t%s\n" s
   (* 退避の仮想命令の実装 *)
   | (NonTail(_), Save(x, y))
@@ -136,17 +123,14 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
   | (NonTail(_), Save(x, y)) 
       when List.mem x allfregs && not (S.mem y !stackset) ->
       save y;
-	(* TODO: use SWc1 *)
-	Printf.fprintf oc "\tmfc1\t$at, %s\n" (reg x);
-	Printf.fprintf oc "\tsw\t$at, %d(%s)\n" (offset y) reg_sp
+	Printf.fprintf oc "\tswc1\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
   | (NonTail(_), Save(x, y)) -> assert (S.mem y !stackset); ()
   (* 復帰の仮想命令の実装 *)
   | (NonTail(x), Restore(y)) when List.mem x allregs ->
       Printf.fprintf oc "\tlw\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
   | (NonTail(x), Restore(y)) ->
       assert (List.mem x allfregs);
-      Printf.fprintf oc "\tlw\t$at, %d(%s)\n" (offset y) reg_sp;
-      Printf.fprintf oc "\tmtc1\t$at, %s\n" (reg x)
+      Printf.fprintf oc "\tlwc1\t%s, %d(%s)\n" (reg x) (offset y) reg_sp
   (* 末尾だったら計算結果を第一レジスタにセット *)
   | (Tail, (Nop | Stw _ | Stfd _ | Comment _ | Save _ as exp)) ->
       g' oc (NonTail(Id.gentmp Type.Unit), exp);

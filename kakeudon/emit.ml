@@ -208,10 +208,10 @@ and g' oc = function (* 各命令のアセンブリ生成 *)
       let ss = stacksize () in
 	Printf.fprintf oc "\tsw\t$ra, %d(%s)\n" (-4 - (ss - 4)) reg_sp;
 	Printf.fprintf oc "\taddiu\t%s, %s, %d\n" reg_sp reg_sp (-ss);
-	Printf.fprintf oc "\tlw\t$ra, 0(%s)\n" (reg reg_cl);
-	Printf.fprintf oc "\tjalr\t$ra\n";
+	Printf.fprintf oc "\tlw\t$at, 0(%s)\n" (reg reg_cl);
+	Printf.fprintf oc "\tjalr\t$at\n";
 	Printf.fprintf oc "\taddiu\t%s, %s, %d\n" reg_sp reg_sp (ss);
-	Printf.fprintf oc "\tlwz\t$ra, %d(%s)\n" (-4 - (ss - 4)) reg_sp;
+	Printf.fprintf oc "\tlw\t$ra, %d(%s)\n" (-4 - (ss - 4)) reg_sp;
 	(if List.mem a allregs && a <> regs.(0) then 
 	   Printf.fprintf oc "\tmov\t%s, %s\n" (reg a) (reg regs.(0)) 
 	 else if List.mem a allfregs && a <> fregs.(0) then 

@@ -52,7 +52,7 @@ test/%.cmp: test/%.res test/%.ans
 	diff $^ > $@
 
 raytracer/min-rt.s: $(RESULT) raytracer/min-rt.ml
-	./$(RESULT) raytracer/min-rt
+	./$(RESULT) -inline 10 raytracer/min-rt
 raytracer/min-rt: libmincaml.S kakeudon/floatLib.s raytracer/min-rt.s raytracer/globals.s
 	../../qkasm/qkasm -show-line $^ 2>lines.txt > $@
 raytracer/min-rt.bin: raytracer/min-rt ../../qkasm/separator.dat raytracer/sld/contest.sld

@@ -1,10 +1,49 @@
 	li	$sp, 0x00400000
 	li	$gp, 0x00030000
 	mtc1	$zero, $f31
+	li	$a0, 0xaa
+	jal	send_byte
 	jal	_min_caml_start
 endloop:
 	jal	recv_byte
 	j	endloop
+
+	.globl	min_caml_read_int
+min_caml_read_int:
+	mov	$a1, $ra
+	li	$a0, 0
+	jal	recv_byte
+	sll	$v0, $v0, 24
+	or	$a0, $a0, $v0
+	jal	recv_byte
+	sll	$v0, $v0, 16
+	or	$a0, $a0, $v0
+	jal	recv_byte
+	sll	$v0, $v0, 8
+	or	$a0, $a0, $v0
+	jal	recv_byte
+	or	$a0, $a0, $v0
+	mov	$ra, $a1
+	jr	$ra
+
+	.globl	min_caml_read_float
+min_caml_read_float:
+	mov	$a1, $ra
+	li	$a0, 0
+	jal	recv_byte
+	sll	$v0, $v0, 24
+	or	$a0, $a0, $v0
+	jal	recv_byte
+	sll	$v0, $v0, 16
+	or	$a0, $a0, $v0
+	jal	recv_byte
+	sll	$v0, $v0, 8
+	or	$a0, $a0, $v0
+	jal	recv_byte
+	or	$a0, $a0, $v0
+	mtc1	$a0, $f0
+	mov	$ra, $a1
+	jr	$ra
 
 	.globl	min_caml_read_char
 min_caml_read_char:
